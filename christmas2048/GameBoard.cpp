@@ -75,3 +75,31 @@ void GameBoard::print()
         printf("\n");
     }
 }
+
+uint64_t GameBoard::boardKey()
+{
+    uint64_t k = 0ULL;
+    for (int i = 0; i < 16; i++)
+    {
+        k = k | ((uint64_t)cells[i] << (4 * (15 - i)));
+    }
+    return k;
+}
+
+//GameBoard GameBoard::fromKey(uint64_t key)
+//{
+//    GameBoard board = GameBoard(false);
+//    uint8_t* rows = new uint8_t[16]{
+//        0, 0, 0, 0,
+//        0, 0, 0, 0,
+//        0, 0, 0, 0,
+//        0, 0, 0, 0
+//    };
+//
+//    for (int i = 0; i < 16; i++)
+//    {
+//        rows[i] = (uint8_t)(key >> (4 * (15 - i)) & 0xF);
+//    }
+//
+//    return rows;
+//}

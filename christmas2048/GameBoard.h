@@ -19,6 +19,9 @@ public:
     void setRandomNext(bool randomNext);
 
     void print();
+
+    uint64_t boardKey();
+    //static GameBoard fromKey(uint64_t key);
 private:
     uint8_t* cells;
     bool needRandom;

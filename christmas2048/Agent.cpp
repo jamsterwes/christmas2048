@@ -77,17 +77,23 @@ double Agent::risk(GameBoard board, MoveID move, bool moveNext, int D)
 
 // TODO: allow use of external nodes
 // note: illegal moves represented with nullptr nodes
-MoveID Agent::select(GameBoard board, std::map<uint64_t, double>& scores, Node*& lastNode, int moveNumber, double timeLimit)
+MoveID Agent::select(GameBoard board, std::map<uint64_t, std::pair<uint64_t, double>>& scores, Node*& lastNode, int moveNumber, double timeLimit)
 {
     Node* root = nullptr;
+    bool found = false;
     if (lastNode != nullptr)
     {
         for (Node* child : lastNode->children)
         {
-            if (child->board == board)
+            if (child->board == board && !found)
             {
                 root = child;
+                found = true;
                 break;
+            }
+            else
+            {
+                delete child;
             }
         }
     }
@@ -108,16 +114,13 @@ MoveID Agent::select(GameBoard board, std::map<uint64_t, double>& scores, Node*&
         if (leaf->n == 1) leaf = birthLeaf(leaf);
 
         // Step 3, score
-        double S = score(leaf->board);
+        double S = score(leaf->board, scores);
 
-        // Step 3.5, backpropagate (probability-weighted)
-        double P = 1.0;
+        // Step 3.5, backpropagate
         while (leaf != nullptr)
         {
             leaf->n++;
-            leaf->t += S * P;
-            //leaf->t += S;
-            P *= leaf->probability;
+            leaf->t += S;
             leaf = leaf->parent;
         }
     }
@@ -129,9 +132,6 @@ MoveID Agent::select(GameBoard board, std::map<uint64_t, double>& scores, Node*&
         else td.add(root->children[i]->n);
     }
 
-    //int sum = 0;
-    //for (int i = 0; i < 4; i++) { if (root->children[i] != nullptr) { sum += root->children[i]->n; } };
-
     double T = 0.1;
 
     auto PT = td._getPT(T);
@@ -142,23 +142,18 @@ MoveID Agent::select(GameBoard board, std::map<uint64_t, double>& scores, Node*&
     for (int i = 0; i < 4; i++)
     {
         if (root->children[i] == nullptr) continue;
+        uint64_t boardKey = root->children[i]->board.boardKey();
+
+        // Update scores table
+        //if (scores.find(boardKey) == scores.end()) scores[boardKey] = std::make_pair(0ULL, 0.0);
+        //scores[boardKey].first += root->children[i]->n;
+        //scores[boardKey].second += root->children[i]->t;
+
         uint64_t val = root->children[i]->n;
-        //val *= (1.0 - risk(root->board, (MoveID)i));
-        //if (val > maxV)
-        //{
-        //    maxV = val;
-        //    maxIS.clear();
-        //    maxIS.push_back(i);
-        //}
-        //else if (val == maxV)
-        //{
-        //    maxIS.push_back(i);
-        //}
         printf("%d: %d\n", i, val);
     }
 
     int moveI = td.eval(T);
-    //int moveI = maxIS[rand() % maxIS.size()];
     lastNode = root->children[moveI];
     for (int i = 0; i < 4; i++)
     {
@@ -190,16 +185,16 @@ Node* Agent::getLeaf(Node* root)
     return ptr;
 }
 
-Node* Agent::birthLeaf(Node* leaf, std::map<uint64_t, double>& scores)
+Node* Agent::birthLeaf(Node* leaf)
 {
     // Birth random cells
     if (leaf->board.isRandomNext())
     {
         // Store (+2) move node score IDs
-        std::vector<Node*> add2Nodes = std::vector<Node*>();
+        std::vector<Node*>* add2Nodes = new std::vector<Node*>();
 
         // Store (+4) move node score IDs
-        std::vector<Node*> add4Nodes = std::vector<Node*>();
+        std::vector<Node*>* add4Nodes = new std::vector<Node*>();
 
         // Loop over possible empty squares
         for (int x = 0; x < 4; x++)
@@ -219,7 +214,7 @@ Node* Agent::birthLeaf(Node* leaf, std::map<uint64_t, double>& scores)
                 leaf->children.push_back(node2);
 
                 // Add (+2)-node to probability list
-                add2Nodes.push_back(node2);
+                add2Nodes->push_back(node2);
 
                 // Create (+4)-node
                 b->set(x, y, 2);
@@ -227,7 +222,7 @@ Node* Agent::birthLeaf(Node* leaf, std::map<uint64_t, double>& scores)
                 leaf->children.push_back(node4);
 
                 // Add (+4)-node to probability list
-                add4Nodes.push_back(node4);
+                add4Nodes->push_back(node4);
 
                 // Delete board
                 delete b;
@@ -235,25 +230,26 @@ Node* Agent::birthLeaf(Node* leaf, std::map<uint64_t, double>& scores)
         }
 
         // Get # of empty squares
-        auto empty = add2Nodes.size() + add4Nodes.size();
+        auto empty = add2Nodes->size() + add4Nodes->size();
 
         // Assign probabilities to (+2)-nodes
-        for (Node* node : add2Nodes)
+        for (Node* node : *add2Nodes)
         {
             node->probability = 0.9 / (double)empty;
         }
 
         // Assign probabilities to (+4)-nodes
-        for (Node* node : add4Nodes)
+        for (Node* node : *add4Nodes)
         {
             node->probability = 0.9 / (double)empty;
         }
+        delete add2Nodes, add4Nodes;
     }
     // Birth moves
     else
     {
         // Store move node score IDs for assignment of probability
-        std::vector<Node*> moveNodes = std::vector<Node*>();
+        std::vector<Node*>* moveNodes = new std::vector<Node*>();
         // Add move nodes
         for (int i = 0; i < 4; i++)
         {
@@ -263,27 +259,26 @@ Node* Agent::birthLeaf(Node* leaf, std::map<uint64_t, double>& scores)
             // Make board
             GameBoard* b = new GameBoard(leaf->board);
 
-            //double R = Agent::risk(*b, (MoveID)i);
             // Make move
             GameManager::move(*b, (MoveID)i);
             b->setRandomNext(true);
 
             // Make node
             Node* node = new Node(*b, leaf);
-            //node->risk = R;
             leaf->children.push_back(node);
 
             // Add node to probability list
-            moveNodes.push_back(node);
+            moveNodes->push_back(node);
 
             // Delete board
             delete b;
         }
         // Assign probabilities
-        for (Node* node : moveNodes)
+        for (Node* node : *moveNodes)
         {
-            node->probability = 1.0 / (double)moveNodes.size();
+            node->probability = 1.0 / (double)moveNodes->size();
         }
+        delete moveNodes;
     }
     // Return first valid child
     for (Node* child : leaf->children)
@@ -294,23 +289,12 @@ Node* Agent::birthLeaf(Node* leaf, std::map<uint64_t, double>& scores)
     return leaf;
 }
 
-double Agent::score(GameBoard board, std::map<uint64_t, double>& scores)
+double Agent::score(GameBoard board, std::map<uint64_t, std::pair<uint64_t, double>>& scores)
 {
-    //double R = 0.0;
-    //for (int i = 0; i < 4; i++)
-    //{
-    //    if (GameManager::canMove(board, (MoveID)i))
-    //    {
-    //        R += risk(board, (MoveID)i, !board.isRandomNext(), 1);
-    //    }
-    //}
-    //
-    //return 1.0 - (R / 4.0) + GameManager::isWin(board);
-
-    // TODO: board key mmm
-    if (scores.find(0) == scores.end())
+    uint64_t key = board.boardKey();
+    if (scores.find(key) != scores.end())
     {
-
+        if (scores[key].first >= 25) return scores[key].second / (double)scores[key].first;
     }
 
     double S = 0.0;
@@ -319,10 +303,12 @@ double Agent::score(GameBoard board, std::map<uint64_t, double>& scores)
         S += Agent::simulate(board);
     }
 
-    // TODO: board key mmm
-    scores.insert_or_assign(0, S / (double)AGENT_SCORE_SIM_COUNT);
+    uint64_t boardKey = board.boardKey();
+    if (scores.find(boardKey) == scores.end()) { scores[boardKey] = std::make_pair(0ULL, 0.0); }
+    scores[boardKey].first++;
+    scores[boardKey].second += S / (double)AGENT_SCORE_SIM_COUNT;
 
-    return S / (double)AGENT_SCORE_SIM_COUNT;
+    return scores[key].second / (double)scores[key].first;
 }
 
 double Agent::simulate(GameBoard board)
