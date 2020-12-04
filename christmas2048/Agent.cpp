@@ -7,74 +7,6 @@
 #include <iostream>
 #include <cassert>
 
-double Agent::risk(GameBoard board, MoveID move, bool moveNext, int D)
-{
-    // Make temporary board
-    GameBoard* tempBoard = new GameBoard(board);
-
-    if (moveNext)
-    {
-        // Play move
-        GameManager::move(*tempBoard, move);
-        tempBoard->setRandomNext(true);
-    }
-
-    int emptyCount = 0;
-    double R = 0.0;
-
-    // Check empty squares
-    for (int x = 0; x < 4; x++)
-    {
-        for (int y = 0; y < 4; y++)
-        {
-            if (tempBoard->at(x, y) != 0) continue;
-            emptyCount++;
-
-            // Make second temporary board
-            GameBoard* checkBoard = new GameBoard(*tempBoard);
-
-            // IF D > 1, next depth
-            if (D > 1)
-            {
-                double subR = 0.0;
-                int subMoves = 0;
-                checkBoard->set(x, y, 1);
-                checkBoard->setRandomNext(false);
-                for (int m = 0; m < 4; m++) 
-                {
-                    if (GameManager::canMove(*checkBoard, (MoveID)m))
-                    {
-                        subMoves++;
-                        subR += 0.9 * risk(*checkBoard, (MoveID)m, true, D - 1);
-                    }
-                }
-
-                checkBoard->set(x, y, 2);
-                for (int m = 0; m < 4; m++) 
-                {
-                    if (GameManager::canMove(*checkBoard, (MoveID)m)) subR += 0.1 * risk(*checkBoard, (MoveID)m, true, D - 1);
-                }
-
-                if (subMoves > 0) R += subR / (double)subMoves;
-            }
-            else
-            {
-                checkBoard->set(x, y, 1);
-                if (GameManager::isLoss(*checkBoard)) R += 0.9;
-
-                checkBoard->set(x, y, 2);
-                if (GameManager::isLoss(*checkBoard)) R += 0.1;
-            }
-
-            delete checkBoard;
-        }
-    }
-
-    delete tempBoard;
-
-    return R / (double)emptyCount;
-}
-
 // TODO: allow use of external nodes
 // note: illegal moves represented with nullptr nodes
 MoveID Agent::select(GameBoard board, std::map<uint64_t, std::pair<uint64_t, double>>& scores, Node*& lastNode, int moveNumber, double timeLimit)
@@ -150,10 +82,10 @@ MoveID Agent::select(GameBoard board, std::map<uint64_t, std::pair<uint64_t, dou
         //scores[boardKey].second += root->children[i]->t;
 
         uint64_t val = root->children[i]->n;
-        printf("%d: %d\n", i, val);
+        printf("%d: %" PRIu64 "\n", i, val);
     }
 
-    int moveI = td.eval(T);
+    size_t moveI = td.eval(T);
     lastNode = root->children[moveI];
     for (int i = 0; i < 4; i++)
     {
@@ -289,29 +221,18 @@ Node* Agent::birthLeaf(Node* leaf)
     return leaf;
 }
 
-double Agent::score(GameBoard board, std::map<uint64_t, std::pair<uint64_t, double>>& scores)
+MoveID selectMove(GameBoard board)
 {
-    uint64_t key = board.boardKey();
-    if (scores.find(key) != scores.end())
+    MoveID move = (MoveID)(rand() % 4);
+    while (!GameManager::canMove(board, (MoveID)move))
     {
-        if (scores[key].first >= 25) return scores[key].second / (double)scores[key].first;
+        move = (MoveID)(rand() % 4);
     }
 
-    double S = 0.0;
-    for (int i = 0; i < AGENT_SCORE_SIM_COUNT; i++)
-    {
-        S += Agent::simulate(board);
-    }
-
-    uint64_t boardKey = board.boardKey();
-    if (scores.find(boardKey) == scores.end()) { scores[boardKey] = std::make_pair(0ULL, 0.0); }
-    scores[boardKey].first++;
-    scores[boardKey].second += S / (double)AGENT_SCORE_SIM_COUNT;
-
-    return scores[key].second / (double)scores[key].first;
+    return move;
 }
 
-double Agent::simulate(GameBoard board)
+double simulate(GameBoard board)
 {
     // Initialize temporary board
     GameBoard* tempBoard = new GameBoard(board);
@@ -326,7 +247,7 @@ double Agent::simulate(GameBoard board)
     while (!GameManager::isOver(*tempBoard) && m < AGENT_MAX_SIM_DEPTH)
     {
         // Get random move
-        MoveID move = Agent::selectMove(*tempBoard);
+        MoveID move = selectMove(*tempBoard);
 
         // Make random move
         GameManager::move(*tempBoard, move);
@@ -348,15 +269,22 @@ double Agent::simulate(GameBoard board)
     return score;
 }
 
-MoveID Agent::selectMove(GameBoard board)
+double Agent::score(GameBoard board, std::map<uint64_t, std::pair<uint64_t, double>>& scores)
 {
-    MoveID move = (MoveID)(rand() % 4);
-    while (!GameManager::canMove(board, (MoveID)move))
+    uint64_t key = board.boardKey();
+    if (scores.find(key) != scores.end())
     {
-        move = (MoveID)(rand() % 4);
+        if (scores[key].first >= 25) return scores[key].second / (double)scores[key].first;
     }
 
-    return move;
+    double S = simulate(board);
+
+    uint64_t boardKey = board.boardKey();
+    if (scores.find(boardKey) == scores.end()) { scores[boardKey] = std::make_pair(0ULL, 0.0); }
+    scores[boardKey].first++;
+    scores[boardKey].second += S;
+
+    return scores[key].second / (double)scores[key].first;
 }
 
 bool Agent::isDeathMove(GameBoard board, MoveID move)

@@ -7,7 +7,7 @@ template<class T>
 class TemperatureDistribution
 {
 public:
-    TemperatureDistribution() : _vals(), gen(12124541231) {}
+    TemperatureDistribution() : _vals(), gen(121541231) {}
     std::mt19937 gen;
 
     inline void add(T val)
@@ -22,7 +22,6 @@ public:
 
         std::discrete_distribution<int> dist = std::discrete_distribution<int>(PT.begin(), PT.end());
 
-        //for (double x: dist.probabilities()) std::cout << x << std::endl;
         return dist(gen);
     }
 

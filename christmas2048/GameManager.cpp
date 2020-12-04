@@ -119,67 +119,9 @@ bool GameManager::isOver(GameBoard board)
 
 // In-place move
 
-std::pair<std::vector<size_t>, std::vector<size_t>> buildTraversals(int x, int y)
-{
-    std::pair<std::vector<size_t>, std::vector<size_t>> out = std::pair<std::vector<size_t>, std::vector<size_t>>(std::vector<size_t>(), std::vector<size_t>());
-    for (int i = 0; i < 4; i++)
-    {
-        out.first.push_back(i);
-        out.second.push_back(i);
-    }
-    if (x == 1) std::reverse(out.first.begin(), out.first.end());
-    if (y == 1) std::reverse(out.second.begin(), out.second.end());
-    return out;
-}
-
-std::pair<Piece, Piece> findFarthest(GameBoard& board, Piece cell, int xdir, int ydir)
-{
-    Piece previous;
-
-    do
-    {
-        previous = cell;
-        cell = Piece(previous.x + xdir, previous.y + ydir);
-    } while (cell.x >= 0 && cell.x < 4 && cell.y >= 0 && cell.y < 4 && board.at(cell.x, cell.y) == 0);
-
-    return std::pair<Piece, Piece>(previous, cell);
-}
-
-void move2048(GameBoard& board, int xdir, int ydir)
-{
-    auto travs = buildTraversals(xdir, ydir);
-    for (int x : travs.first)
-    {
-        for (int y : travs.second)
-        {
-            auto tile = board.at(x, y);
-            if (tile)
-            {
-                auto pos = findFarthest(board, Piece(x, y), xdir, ydir);
-                auto next = board.at(pos.second.x, pos.second.y);
-
-                // TODO: need to keep up with merged from
-                if (next && next == tile)
-                {
-                    board.set(pos.second.x, pos.second.y, next + 1);
-                    board.set(x, y, 0);
-                }
-                else
-                {
-                    board.set(pos.second.x, pos.second.y, tile);
-                    board.set(x, y, 0);
-                }
-            }
-        }
-    }
-}
-
 MoveInfo GameManager::moveIPLeft(GameBoard& board)
 {
     MoveInfo info;
-    //move2048(board, -1, 0);
-    //info.moves = 1;
-    //info.merges = 0;
     // Shift rows, one at a time
     for (int y = 0; y < 4; y++)
     {
@@ -224,9 +166,6 @@ MoveInfo GameManager::moveIPLeft(GameBoard& board)
 MoveInfo GameManager::moveIPRight(GameBoard& board)
 {
     MoveInfo info;
-    /*move2048(board, 1, 0);
-    info.moves = 1;
-    info.merges = 0;*/
     // Shift rows, one at a time
     for (int y = 0; y < 4; y++)
     {
@@ -271,9 +210,6 @@ MoveInfo GameManager::moveIPRight(GameBoard& board)
 MoveInfo GameManager::moveIPUp(GameBoard& board)
 {
     MoveInfo info;
-    /*move2048(board, 0, -1);
-    info.moves = 1;
-    info.merges = 0;*/
     // Shift cols, one at a time
     for (int x = 0; x < 4; x++)
     {
@@ -318,9 +254,6 @@ MoveInfo GameManager::moveIPUp(GameBoard& board)
 MoveInfo GameManager::moveIPDown(GameBoard& board)
 {
     MoveInfo info;
-    /*move2048(board, 0, 1);
-    info.moves = 1;
-    info.merges = 0;*/
     // Shift cols, one at a time
     for (int x = 0; x < 4; x++)
     {

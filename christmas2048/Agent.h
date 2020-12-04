@@ -4,7 +4,6 @@
 #include "Node.h"
 #include <map>
 
-static int AGENT_SCORE_SIM_COUNT = 1;
 static int AGENT_MAX_SIM_DEPTH = 10000;
 
 class Agent
@@ -17,10 +16,7 @@ private:
     static Node* getLeaf(Node* root);
     static Node* birthLeaf(Node* leaf);
     // Scoring Helper Methods
-    static double risk(GameBoard board, MoveID move, bool moveNext, int D = 2);
     static double score(GameBoard board, std::map<uint64_t, std::pair<uint64_t, double>>& scores);
-    static double simulate(GameBoard board);
-    static MoveID selectMove(GameBoard board);
     static bool isDeathMove(GameBoard board, MoveID move);
     static bool isWinMove(GameBoard board, MoveID move);
 };
