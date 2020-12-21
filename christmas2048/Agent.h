@@ -10,7 +10,7 @@ class Agent
 {
 public:
     // Selection
-    static MoveID select(GameBoard board, std::map<uint64_t, std::pair<uint64_t, double>>& scores, Node*& lastNode, int moveNumber, double timeLimit = 1.0);
+    static MoveID select(GameBoard board, std::map<uint64_t, std::pair<uint64_t, double>>& scores, Node*& lastNode, int moveNumber, double tau, double timeLimit = 1.0);
 private:
     // Search Helper Methods
     static Node* getLeaf(Node* root);

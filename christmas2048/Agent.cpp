@@ -9,7 +9,7 @@
 
 // TODO: allow use of external nodes
 // note: illegal moves represented with nullptr nodes
-MoveID Agent::select(GameBoard board, std::map<uint64_t, std::pair<uint64_t, double>>& scores, Node*& lastNode, int moveNumber, double timeLimit)
+MoveID Agent::select(GameBoard board, std::map<uint64_t, std::pair<uint64_t, double>>& scores, Node*& lastNode, int moveNumber, double tau, double timeLimit)
 {
     Node* root = nullptr;
     bool found = false;
@@ -64,9 +64,7 @@ MoveID Agent::select(GameBoard board, std::map<uint64_t, std::pair<uint64_t, dou
         else td.add(root->children[i]->n);
     }
 
-    double T = 0.1;
-
-    auto PT = td._getPT(T);
+    auto PT = td._getPT(tau);
 
     std::vector<int> maxIS = std::vector<int>();
     uint64_t maxV = 0;
@@ -76,16 +74,11 @@ MoveID Agent::select(GameBoard board, std::map<uint64_t, std::pair<uint64_t, dou
         if (root->children[i] == nullptr) continue;
         uint64_t boardKey = root->children[i]->board.boardKey();
 
-        // Update scores table
-        //if (scores.find(boardKey) == scores.end()) scores[boardKey] = std::make_pair(0ULL, 0.0);
-        //scores[boardKey].first += root->children[i]->n;
-        //scores[boardKey].second += root->children[i]->t;
-
         uint64_t val = root->children[i]->n;
         printf("%d: %" PRIu64 "\n", i, val);
     }
 
-    size_t moveI = td.eval(T);
+    size_t moveI = td.eval(tau);
     lastNode = root->children[moveI];
     for (int i = 0; i < 4; i++)
     {

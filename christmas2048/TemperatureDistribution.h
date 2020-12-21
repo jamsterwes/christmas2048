@@ -32,9 +32,14 @@ public:
         double sum = 0.0;
         for (T val : _vals) sum += (double)val;
         std::vector<double> PT{};
-        for (T val : _vals) PT.push_back(pow((double)val / sum, 1.0 / tau));
         double tauSum = 0.0;
-        for (double val : PT) tauSum += val;
+        double V;
+        for (T val : _vals)
+        {
+            V = pow((double)val / sum, 1.0 / tau);
+            PT.push_back(V);
+            tauSum += V;
+        }
         for (int i = 0; i < PT.size(); i++) PT[i] /= tauSum;
         return PT;
     }
